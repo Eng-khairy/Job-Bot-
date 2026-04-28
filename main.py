@@ -9,37 +9,90 @@ def send_message(text):
     data = {"chat_id": CHAT_ID, "text": text}
     requests.post(url, data=data)
 
+
+# ================= FETCH JOBS =================
+
+def fetch_remotive():
+    url = "https://remotive.com/api/remote-jobs"
+    jobs = []
+    try:
+        res = requests.get(url).json()
+        for job in res.get("jobs", [])[:20]:
+            jobs.append({
+                "title": job["title"],
+                "company": job["company_name"],
+                "location": "Remote",
+                "url": job["url"]
+            })
+    except:
+        pass
+    return jobs
+
+
+def fetch_adzuna():
+    url = "https://api.adzuna.com/v1/api/jobs/sa/search/1?app_id=demo&app_key=demo&results_per_page=20"
+    jobs = []
+    try:
+        res = requests.get(url).json()
+        for job in res.get("results", []):
+            jobs.append({
+                "title": job["title"],
+                "company": job["company"]["display_name"],
+                "location": job["location"]["display_name"],
+                "url": job["redirect_url"]
+            })
+    except:
+        pass
+    return jobs
+
+
 def fetch_jobs():
-    # Demo jobs (replace later with APIs)
-    return [
-        "Senior System Administrator - Riyadh (AWS, Azure) VISA",
-        "Cloud Engineer AWS - Saudi Arabia",
-        "IT Support L2 - Cairo",
-        "Frontend Developer (ignore)",
+    return fetch_remotive() + fetch_adzuna()
+
+
+# ================= FILTER =================
+
+def is_relevant(job):
+    text = f"{job['title']} {job['location']}".lower()
+
+    keywords = [
+        "system administrator",
+        "cloud",
+        "aws",
+        "azure",
+        "oracle",
+        "infrastructure",
+        "it support"
     ]
 
-def filter_jobs(jobs):
-    keywords = ["system administrator", "cloud", "aws", "azure", "infrastructure"]
-    result = []
-    for job in jobs:
-        text = job.lower()
-        if any(k in text for k in keywords):
-            result.append(job)
-    return result
+    if not any(k in text for k in keywords):
+        return False
+
+    # Saudi / Egypt / Remote
+    if any(x in text for x in ["saudi", "riyadh", "jeddah", "egypt", "cairo", "remote"]):
+        return True
+
+    return False
+
+
+# ================= MAIN =================
 
 def main():
     jobs = fetch_jobs()
-    jobs = filter_jobs(jobs)
+
+    jobs = [job for job in jobs if is_relevant(job)]
 
     if not jobs:
-        send_message("No jobs found today 😢")
+        send_message("❌ No relevant jobs found today")
         return
 
-    msg = "🔥 Latest Jobs:\n\n"
+    msg = "🔥 Latest Jobs (Saudi 🇸🇦 | Egypt 🇪🇬 | Remote 🌍):\n\n"
+
     for job in jobs[:5]:
-        msg += f"• {job}\n"
+        msg += f"• {job['title']}\n🏢 {job['company']}\n📍 {job['location']}\n🔗 {job['url']}\n\n"
 
     send_message(msg)
+
 
 if __name__ == "__main__":
     main()
