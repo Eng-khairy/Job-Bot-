@@ -15,6 +15,7 @@ from models import filter_jobs
 from dedup import load_seen_ids, save_seen_ids, deduplicate, mark_as_seen
 from telegram_sender import send_jobs
 from cleanup import cleanup_join_messages
+from custom_scoring import job_score
 
 # ─── Logging ─────────────────────────────────────────────────
 logging.basicConfig(
@@ -62,6 +63,14 @@ def main():
     try:
         # ── 3. Filter (keywords + geo) ────────────────────────
         filtered = filter_jobs(all_jobs)
+
+        # 🔥 Smart ranking
+        filtered.sort(key=job_score, reverse=True)
+
+        # 🔥 Keep only strong matches
+        filtered = [job for job in filtered if job_score(job) >= 50]
+
+        
         log.info(f"After filtering: {len(filtered)} jobs")
 
         # ── 4. Deduplicate ────────────────────────────────────
